@@ -5,33 +5,17 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 
-# 1. Configuration et Style
-st.set_page_config(page_title="TP INF232 - Santé", page_icon="🩺")
+# 1. Configuration et Style Dark Mode
+st.set_page_config(page_title="Santé Privée - INF232", page_icon="🩺")
 
-# Injection de CSS pour un fond Noir et Gris (Dark Mode Pro)
 st.markdown("""
     <style>
-    /* Fond principal : dégradé noir vers gris foncé */
     .stApp {
         background: linear-gradient(135deg, #000000 0%, #2c3e50 100%);
         background-attachment: fixed;
     }
-    
-    /* Rendre le texte principal blanc pour la lisibilité */
-    h1, h2, h3, p, label, .stMarkdown {
-        color: #ffffff !important;
-    }
-
-    /* Style de la barre latérale (Sidebar) */
-    [data-testid="stSidebar"] {
-        background-color: rgba(30, 30, 30, 0.8);
-    }
-    
-    /* Ajustement des widgets pour le mode sombre */
-    .stTextInput>div>div>input, .stNumberInput>div>div>input, .stSelectbox>div>div>select {
-        background-color: #1e1e1e;
-        color: white;
-    }
+    h1, h2, h3, p, label { color: #ffffff !important; }
+    [data-testid="stSidebar"] { background-color: rgba(30, 30, 30, 0.8); }
     </style>
     """, unsafe_allow_html=True)
 
@@ -45,89 +29,70 @@ def init_db():
 
 init_db()
 
-# 3. INTERFACE DE DÉPART
-st.title("📲 APPLICATION DE COLLECTE ET D'ANALYSE")
-
+# 3. SIDEBAR (Saisie + Accès Sécurisé)
 with st.sidebar:
-    st.header("ENREGISTREMENT")
+    st.header(" ACCÈS MÉDICAL")
+    code_secret = st.text_input("Code Docteur (Secret)", type="password")
+    acces_autorise = (code_secret == "1234") 
+
+    st.divider()
+    st.header(" ENREGISTREMENT")
     with st.form("form_patient", clear_on_submit=True):
         nom = st.text_input("Nom")
         prenom = st.text_input("Prénom")
-        age = st.number_input("Âge", min_value=0, max_value=120, value=25)
-        tension = st.number_input("Tension (mmHg)", min_value=40, max_value=250, value=120)
-        
-        liste_maladies = [
-            "Aucune (RAS)", "Diarrhée", "Diabète Type 1", "Diabète Type 2", 
-            "Paludisme", "Drépanocytose", "Asthme", "Obésité", 
-            "Insuffisance Rénale", "Toux", "Grippe", "Autre..."
-        ]
-        maladie_sel = st.selectbox("Sélectionner la Maladie", liste_maladies)
-        
-        maladie_finale = maladie_sel
-        if maladie_sel == "Autre...":
-            maladie_precision = st.text_input("Précisez la maladie")
-            maladie_finale = maladie_precision if maladie_precision else "Autre"
-            
-        envoyer = st.form_submit_button("Enregistrer le Patient")
+        age = st.number_input("Âge", 0, 120, 25)
+        tension = st.number_input("Tension (mmHg)", 40, 250, 120)
+        liste_maladies = ["Aucune (RAS)", "Paludisme", "Diabète", "Hypertension", "Grippe", "Toux", "Autre..."]
+        maladie_choisie = st.selectbox("Maladie", liste_maladies)
+        envoyer = st.form_submit_button("Enregistrer")
 
-    if envoyer:
-        if nom and prenom:
-            conn = sqlite3.connect('sante_finale.db')
-            conn.execute('INSERT INTO patients VALUES (?,?,?,?,?)', (nom, prenom, age, maladie_finale, tension))
-            conn.commit()
-            conn.close()
-            st.success(f"Patient {prenom} ajouté !")
-            st.rerun()
-        else:
-            st.error("Veuillez remplir le nom et le prénom.")
+    if envoyer and nom:
+        conn = sqlite3.connect('sante_finale.db')
+        conn.execute('INSERT INTO patients VALUES (?,?,?,?,?)', (nom, prenom, age, maladie_choisie, tension))
+        conn.commit()
+        conn.close()
+        st.success("Données enregistrées !")
+        st.rerun()
 
-    st.divider()
-    if st.button("📴 SORTIR"):
-        st.warning("Session terminée.")
-        st.stop()
+# 4. AFFICHAGE ET SECRET MÉDICAL
+st.title("📲 GESTION ET ANALYSE DES PATIENTS")
 
-# 4. AFFICHAGE ET ANALYSE
 conn = sqlite3.connect('sante_finale.db')
 df = pd.read_sql_query('SELECT * FROM patients', conn)
 conn.close()
 
 if not df.empty:
-    # Diagnostic automatique
-    def verifier_tension(t):
-        return "Normale" if t < 140 else "Élevée (Attention)"
-    
-    df['État Tension'] = df['tension'].apply(verifier_tension)
+    # Diagnostic de tension (visible)
+    df['État Tension'] = df['tension'].apply(lambda t: " Normale" if t < 140 else " Élevée")
 
-    st.subheader("LISTE DES PATIENTS")
-    # Affichage du tableau (le mode sombre de Streamlit l'adaptera automatiquement)
-    st.dataframe(df, use_container_width=True)
-    
-    # Export CSV
-    csv = df.to_csv(index=False).encode('utf-8')
-    st.download_button(
-        label="📥 Télécharger le registre (CSV)",
-        data=csv,
-        file_name='registre_patients.csv',
-        mime='text/csv',
-    )
+    st.subheader(" Registre des Consultations")
+    df_affichage = df.copy()
+    if not acces_autorise:
+        df_affichage['maladie'] = " CONFIDENTIEL"
+        st.info(" Mode Public : Les diagnostics sont masqués par le secret médical.")
+    else:
+        st.warning(" Mode Docteur : Accès aux diagnostics autorisé.")
 
+    st.dataframe(df_affichage, use_container_width=True)
+
+    # --- ANALYSES STATISTIQUES ---
     if len(df) >= 2:
         st.divider()
-        st.subheader("ANALYSE DES STATISTIQUE")
+        st.subheader(" Analyses Descriptives et Régression")
         
-        col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Moyenne Tension", f"{df['tension'].mean():.1f}")
-        col2.metric("Médiane", f"{df['tension'].median():.1f}")
-        col3.metric("Variance", f"{df['tension'].var():.1f}")
-        col4.metric("Écart-type", f"{df['tension'].std():.1f}")
+        # Métriques
+        col_m1, col_m2, col_m3 = st.columns(3)
+        col_m1.metric("Moyenne Tension", f"{df['tension'].mean():.1f}")
+        col_m2.metric("Âge Moyen", f"{df['age'].mean():.1f}")
+        correlation = df['age'].corr(df['tension'])
+        col_m3.metric("Corrélation", f"{correlation:.2f}")
 
-        st.write("### VISUALISATION DES GRAPHIQUES")
+        # Graphiques
         g1, g2 = st.columns(2)
         
         with g1:
-            st.write("**Distribution**")
+            st.write("**Distribution (Histogramme)**")
             fig1, ax1 = plt.subplots()
-            # On force le graphique à être lisible sur fond sombre
             fig1.patch.set_facecolor('#2c3e50')
             ax1.set_facecolor('#2c3e50')
             sns.histplot(df['tension'], kde=True, ax=ax1, color="cyan")
@@ -135,36 +100,27 @@ if not df.empty:
             st.pyplot(fig1)
             
         with g2:
-            st.write("**Régression Âge/Tension**")
+            st.write("**Régression (Âge / Tension)**")
             fig2, ax2 = plt.subplots()
             fig2.patch.set_facecolor('#2c3e50')
             ax2.set_facecolor('#2c3e50')
-            sns.regplot(x=df['age'], y=df['tension'], ax=ax2, color="orange")
+            sns.regplot(x=df['age'], y=df['tension'], ax=ax2, color="orange", line_kws={"color": "red"})
             ax2.tick_params(colors='white')
             st.pyplot(fig2)
-            
-            a, b = np.polyfit(df['age'], df['tension'], 1)
-            st.info(f"Tendance : +{a:.2f} mmHg par an.")
+
+        # Explication mathématique
+        pente, inter = np.polyfit(df['age'], df['tension'], 1)
+        st.write("###  Analyse de la Régression")
+        st.latex(f"y = {pente:.2f}x + {inter:.2f}")
+        st.info(f"Interprétation : La tension augmente de {pente:.2f} mmHg par année d'âge.")
 else:
-    st.info(" Enregistrez un patient pour voir les analyses.")
-    # --- PIED DE PAGE (FOOTER) ---
-st.markdown("""
-    <style>
-    .footer {
-        position: fixed;
-        left: 0;
-        bottom: 0;
-        width: 100%;
-        background-color: rgba(0, 0, 0, 0.5);
-        color: white;
-        text-align: center;
-        padding: 10px;
-        font-family: 'Helvetica Neue', sans-serif;
-        font-size: 14px;
-        letter-spacing: 1px;
-    }
-    </style>
-    <div class="footer">
-        <p>Développé  <b>GEOVANNY ESSINDI VICTOR</b> | TP INF232 - 2026</p>
+    st.info("La base est vide. Enregistrez des patients pour voir les graphiques.")
+
+# --- FOOTER ---
+st.markdown(f"""
+    <div style="position: fixed; bottom: 0; left: 0; width: 100%; background-color: rgba(0,0,0,0.8); text-align: center; padding: 8px;">
+        <p style="margin:0; color: white; font-size: 14px;">
+            Développé par <b>GEOVANNY ESSINDI VICTOR</b> | TP INF232 - 2026 🔒
+        </p>
     </div>
     """, unsafe_allow_html=True)
