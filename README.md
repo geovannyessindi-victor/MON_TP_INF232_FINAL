@@ -21,7 +21,17 @@ Application de Collecte et d'Analyse Descriptive (TP INF232)
 
 3- Fonctionnalités Clés
 
-  Formulaire Intelligent : Saisie sécurisée avec réinitialisation automatique après envoi.
+   1.  Sécurité et Secret Médical
+   L'application respecte la confidentialité des patients. 
+   - Les noms, prénoms et tensions sont visibles pour le suivi administratif.
+   - **La Maladie est masquée** par une mention "CONFIDENTIEL".
+   - Un **Code Docteur (1234)** est nécessaire pour déverrouiller et visualiser les diagnostics.
+
+    2.  Analyse de Régression Linéaire
+   L'outil ne se contente pas de stocker des données, il les analyse :
+   - **Visualisation** : Un graphique de régression montre la corrélation entre l'âge et la tension artérielle.
+   - **Mathématiques** : Calcul automatique de l'équation de la droite (y = ax + b).
+   - **Interprétation** : L'application explique en texte clair comment la tension évolue avec l'âge.
 
   Statistiques Automatiques : Calcul en temps réel de la Moyenne, Médiane, Variance et Écart-type.
 
@@ -36,6 +46,12 @@ Application de Collecte et d'Analyse Descriptive (TP INF232)
   Interprétation  : Analyse textuelle automatique des résultats de la régression.
 
 4- Installation et Exécution
+a) Technologies Utilisées
+- **Python** : Langage principal.
+- **Streamlit** : Framework pour l'interface web.
+- **SQLite3** : Base de données locale sécurisée.
+- **Pandas & Numpy** : Traitement des données et calculs mathématiques.
+- **Matplotlib & Seaborn** : Visualisations graphiques.
 
   Pour faire fonctionner ce projet sur une autre machine (Linux, Windows ou Mac), suivez ces étapes :
 
