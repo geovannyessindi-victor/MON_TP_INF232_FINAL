@@ -19,9 +19,11 @@ st.markdown("""
         background-attachment: fixed;
     }
     
-    /* BOUTONS ÉTIRÉ */
+    /* BOUTONS MÊME TAILLE MENU */
     .stButton > button {
-        width: 100% !important;
+        width: 400px !important;
+        min-width: 400px !important;
+        max-width: 400px !important;
         height: 85px !important; 
         font-size: 22px !important;
         font-weight: 800 !important;
@@ -31,6 +33,8 @@ st.markdown("""
         border: 1px solid rgba(255,255,255,0.4) !important;
         text-transform: uppercase;
         transition: 0.3s;
+        display: block !important;
+        margin: 8px auto !important;
     }
     
     .stButton > button:hover {
@@ -43,10 +47,16 @@ st.markdown("""
     .retour-container div.stButton > button {
         height: 50px !important;
         background: linear-gradient(45deg, #c0392b, #e74c3c) !important;
-        width: auto !important;
+        width: 100% !important;
         padding: 0 40px !important;
         font-size: 18px !important;
-        color:red;
+        color: white !important;
+        border: 2px solid #e74c3c !important;
+    }
+
+    .retour-container div.stButton > button:hover {
+        background: linear-gradient(45deg, #a93226, #c0392b) !important;
+        border-color: #ff6b6b !important;
     }
     
     /* TITRE CLIGNOTANT */
@@ -76,6 +86,8 @@ st.markdown("""
 # --- 2. INITIALISATION ---
 if 'page' not in st.session_state: st.session_state.page = 'MENU'
 if 'auth' not in st.session_state: st.session_state.auth = False
+# MODIFICATION 1 : clé pour réinitialiser le formulaire
+if 'form_key' not in st.session_state: st.session_state.form_key = 0
 
 def init_db():
     conn = sqlite3.connect('sante_finale.db')
@@ -162,10 +174,10 @@ def page_inscription():
         "Grippe", "Anémie", "Gastrite", "Asthme", "Infection Urinaire",
         "Bronchite", "Rhumatisme", "Hépatite B", "Tuberculose", "Dengue"
     ]
-    with st.form("form_patient"):
+    with st.form(key=f"form_patient_{st.session_state.form_key}"):
         c1, c2 = st.columns(2)
-        nom = c1.text_input("NOM")
-        prenom = c2.text_input("PRÉNOM")
+        nom = c1.text_input("NOM", placeholder="ex:LEWELL...")
+        prenom = c2.text_input("PRÉNOM", placeholder="ex: LUCAS...")
         age = c1.number_input("ÂGE", 0, 120, 25)
         tension = c2.number_input("TENSION (Systolique)", 40, 250, 120)
         maladie = st.selectbox("DIAGNOSTIC", maladies)
@@ -176,6 +188,8 @@ def page_inscription():
                 conn.execute('INSERT INTO patients (nom, prenom, age, maladie, tension, statut) VALUES (?,?,?,?,?,?)', (nom,prenom,age,maladie,tension,statut))
                 conn.commit(); conn.close()
                 st.success(" bienvenue M/Mme !")
+                st.session_state.form_key += 1
+                st.rerun()
             else: st.error("Veuillez remplir le nom et le prénom.")
 
 def page_session():
@@ -194,6 +208,36 @@ def page_session():
         
         # Affichage du tableau
         st.dataframe(df_display, use_container_width=True)
+
+        st.write("---")
+
+        # --- MODIFICATION 4 : MODIFIER LES INFOS D'UN PATIENT ---
+        st.subheader("✏️ MODIFIER LES INFORMATIONS D'UN PATIENT")
+        options = [f"ID {row['id']} - {row['nom']} {row['prenom']}" for _, row in df.iterrows()]
+        choix = st.selectbox("Sélectionner un patient à modifier", options)
+        patient_id = int(choix.split(" ")[1])
+        patient = df[df['id'] == patient_id].iloc[0]
+        maladies_list = ["Aucune","Paludisme","Typhoïde","Hypertension","Diabète","Grippe","Anémie","Gastrite","Asthme","Infection Urinaire","Bronchite","Rhumatisme","Hépatite B","Tuberculose","Dengue"]
+        with st.form(key="form_modifier"):
+            c1, c2 = st.columns(2)
+            new_nom = c1.text_input("NOM", value=patient['nom'], placeholder="Entrez le nom...")
+            new_prenom = c2.text_input("PRÉNOM", value=patient['prenom'], placeholder="Entrez le prénom...")
+            new_age = c1.number_input("ÂGE", 0, 120, int(patient['age']))
+            new_tension = c2.number_input("TENSION (Systolique)", 40, 250, int(patient['tension']))
+            idx_maladie = maladies_list.index(patient['maladie']) if patient['maladie'] in maladies_list else 0
+            new_maladie = st.selectbox("DIAGNOSTIC", maladies_list, index=idx_maladie)
+            idx_statut = ["En attente","Consulté"].index(patient['statut']) if patient['statut'] in ["En attente","Consulté"] else 0
+            new_statut = st.selectbox("STATUT", ["En attente","Consulté"], index=idx_statut)
+            if st.form_submit_button("💾 SAUVEGARDER LES MODIFICATIONS"):
+                if new_nom and new_prenom:
+                    conn2 = sqlite3.connect('sante_finale.db')
+                    conn2.execute('UPDATE patients SET nom=?, prenom=?, age=?, maladie=?, tension=?, statut=? WHERE id=?',
+                                  (new_nom, new_prenom, new_age, new_maladie, new_tension, new_statut, patient_id))
+                    conn2.commit(); conn2.close()
+                    st.success(f" Informations de {new_nom} {new_prenom} mises à jour !")
+                    st.rerun()
+                else:
+                    st.error("Le nom et le prénom sont obligatoires.")
 
         st.write("---")
         st.subheader("📥 Télécharger les données")
@@ -248,5 +292,4 @@ elif st.session_state.page == 'INSCRIPTION': page_inscription()
 elif st.session_state.page == 'SESSION': page_session()
 elif st.session_state.page == 'ANALYSE': page_analyse()
 elif st.session_state.page == 'PROGRES': page_progres()
-
 st.markdown(f'<div style="position:fixed;bottom:0;width:100%;text-align:center;color:white;background:rgba(0,0,0,0.9);padding:5px;"><b>GEOVANNY ESSINDI VICTOR</b> | TP INF232 - 2026</div>', unsafe_allow_html=True)
