@@ -178,8 +178,8 @@ def page_inscription():
         c1, c2 = st.columns(2)
         nom = c1.text_input("NOM", placeholder="ex:LEWELL...")
         prenom = c2.text_input("PRÉNOM", placeholder="ex: LUCAS...")
-        age = c1.number_input("ÂGE", 0, 120,"Entrer votre age")
-        tension = c2.number_input("TENSION (Systolique)", 40, 250, placeholder="120")
+        age = c1.number_input("ÂGE",placeholder="ex:24" )
+        tension = c2.number_input("TENSION (Systolique)", placeholder="120")
         maladie = st.selectbox("DIAGNOSTIC", maladies)
         statut = st.selectbox("STATUT", ["Choisir un statut","Urgent","En attente", "Consulté"])
         if st.form_submit_button("💾 ENREGISTRER LE PATIENT"):
