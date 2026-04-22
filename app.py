@@ -4,200 +4,249 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
-import io
 
-# 1. Configuration et Style Dark Mode
-st.set_page_config(page_title="Santé Privée - INF232", page_icon="🩺")
+# --- 1. CONFIGURATION & STYLE ---
+st.set_page_config(page_title="Santé Privée - INF232", page_icon="🩺", layout="wide")
 
 st.markdown("""
-    <style>
+   
+
+   <style>
     .stApp {
-        background: linear-gradient(135deg, #000000 0%, #2c3e50 100%);
+        background: linear-gradient(rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.85)), 
+                   url('https://images.unsplash.com/photo-1576091160550-2173dba999ef?q=80&w=2070&auto=format&fit=crop');
+        background-size: cover;
         background-attachment: fixed;
     }
-    h1, h2, h3, p, label { color: #ffffff !important; }
-    [data-testid="stSidebar"] { background-color: rgba(30, 30, 30, 0.8); }
+    
+    /* BOUTONS ÉTIRÉ */
+    .stButton > button {
+        width: 100% !important;
+        height: 85px !important; 
+        font-size: 22px !important;
+        font-weight: 800 !important;
+        border-radius: 10px !important; 
+        background: linear-gradient(45deg, #2c3e50, #3498db) !important;
+        color: white !important;
+        border: 1px solid rgba(255,255,255,0.4) !important;
+        text-transform: uppercase;
+        transition: 0.3s;
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-3px);
+        border-color: #f1c40f !important;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.4);
+    }
+
+    /* BOUTON RETOUR ROUGE */
+    .retour-container div.stButton > button {
+        height: 50px !important;
+        background: linear-gradient(45deg, #c0392b, #e74c3c) !important;
+        width: auto !important;
+        padding: 0 40px !important;
+        font-size: 18px !important;
+        color:red;
+    }
+    
+    /* TITRE CLIGNOTANT */
+    @keyframes clignoter {
+        0%   { color: red; }
+        20%  { color: blue; }
+        40%  { color: green; }
+        60%  { color: orange; }
+        80%  { color: brown; }
+        100% { color: red; }
+    }
+
+    h1 { 
+        text-align: center; 
+        font-size: 55px !important; 
+        font-weight: 900; 
+        animation: clignoter 1.5s infinite;
+    }
+
+    /* ÉCRITURES EN GRAS */
+    h2 { color: #3498db !important; text-align: center; font-size: 28px !important; font-weight: bold !important; }
+    p, div, span, label { font-weight: bold !important; }
+    .stMetric { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); font-weight: bold !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# 2. Base de données
+# --- 2. INITIALISATION ---
+if 'page' not in st.session_state: st.session_state.page = 'MENU'
+if 'auth' not in st.session_state: st.session_state.auth = False
+
 def init_db():
     conn = sqlite3.connect('sante_finale.db')
     conn.execute('''CREATE TABLE IF NOT EXISTS patients 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, nom TEXT, prenom TEXT, age INTEGER, maladie TEXT, tension INTEGER, statut TEXT)''')
-    conn.commit()
-    conn.close()
+    conn.commit(); conn.close()
 
 init_db()
-with st.sidebar:
-    st.header("ACCÈS MÉDICAL")
-    code_secret = st.text_input("Code Docteur (Secret)", type="password")
-    acces_autorise = (code_secret == "1234") 
 
-    st.divider()
+def bouton_retour():
+    st.markdown('<div class="retour-container">', unsafe_allow_html=True)
+    if st.button("⬅️ RETOUR AU MENU PRINCIPAL"):
+        st.session_state.page = 'MENU'; st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# --- 3. PAGES ---
+
+def menu_principal():
+    st.title("🏨️ SYSTÈME DE GESTION MÉDICALE")
+    st.write("###🩺️ La sante notre priorite")
+    st.write("---")
     
-    tab1, tab2 = st.tabs(["➕ Nouveau", " Modifier"])
-    
-    with tab1:
-        st.header(" ENREGISTREMENT")
-        with st.form("form_patient", clear_on_submit=True):
-            nom = st.text_input("Nom", placeholder="Ex: ESSINDI")
-            prenom = st.text_input("Prénom", placeholder="Ex: Geovanny")
-            age = st.number_input("Âge", 0, 120, 25, help="Entrez l'âge du patient")
-            tension = st.number_input("Tension (mmHg)", 40, 250, 120, help="Ex: 120")
+    col1, col2 = st.columns(2, gap="large")
+    with col1:
+        if st.button(" INSCRIPTION"): st.session_state.page = 'INSCRIPTION'; st.rerun()
+        if st.button(" ANALYSES & STATS"): st.session_state.page = 'ANALYSE'; st.rerun()
+    with col2:
+        if st.button(" SESSIONS PATIENTS"): st.session_state.page = 'SESSION'; st.rerun()
+        if st.button(" RÉGRESSION & PROGRÈS"): st.session_state.page = 'PROGRES'; st.rerun()
             
-            liste_maladies = ["Aucune (RAS)", "Paludisme", "Diabète", "Hypertension", "Grippe", "Toux", "Autre..."]
-            maladie_choisie = st.selectbox("Maladie", liste_maladies)
-            statut_inf = st.selectbox("Statut", ["En attente", "Consulté"])
-            envoyer = st.form_submit_button("Enregistrer")
+    st.write("---")
+    _, center, _ = st.columns([1,1,1])
+    with center:
+        st.write("<p style='text-align:center;'> ZONE DOCTEUR</p>", unsafe_allow_html=True)
+        code = st.text_input("", type="password", placeholder="Code secret...")
+        st.session_state.auth = (code == "1234")
 
-        if envoyer and nom:
-            conn = sqlite3.connect('sante_finale.db')
-            conn.execute('INSERT INTO patients (nom, prenom, age, maladie, tension, statut) VALUES (?,?,?,?,?,?)', 
-                         (nom, prenom, age, maladie_choisie, tension, statut_inf))
-            conn.commit()
-            conn.close()
-            st.success("Données enregistrées !")
-            st.rerun()
-
-    with tab2:
-        st.header("MODIFICATION")
-        conn = sqlite3.connect('sante_finale.db')
-        df_edit = pd.read_sql_query('SELECT id, nom, prenom FROM patients', conn)
-        conn.close()
-        
-        if not df_edit.empty:
-            liste_p = {f"{row['id']} - {row['nom']}": row['id'] for _, row in df_edit.iterrows()}
-            cible = st.selectbox("Patient à modifier", list(liste_p.keys()))
-            nouveau_statut = st.selectbox("Changer le statut", ["En attente", "Consulté"])
-            
-            if st.button("Mettre à jour"):
-                conn = sqlite3.connect('sante_finale.db')
-                conn.execute('UPDATE patients SET statut = ? WHERE id = ?', (nouveau_statut, liste_p[cible]))
-                conn.commit()
-                conn.close()
-                st.success("Statut mis à jour !")
-                st.rerun()
-
-# 4. AFFICHAGE ET SECRET MÉDICAL
-st.title("📲 GESTION ET ANALYSE DES PATIENTS")
-
-conn = sqlite3.connect('sante_finale.db')
-df = pd.read_sql_query('SELECT * FROM patients', conn)
-conn.close()
-
-if not df.empty:
-    search_term = st.text_input("🔍️ Rechercher un patient par son nom :", placeholder="Tapez un nom pour filtrer...")
-    if search_term:
-        df_filtered_view = df[df['nom'].str.contains(search_term, case=False)]
-    else:
-        df_filtered_view = df
-
-    df['État Tension'] = df['tension'].apply(lambda t: " Normale" if t < 140 else "Élevée")
-
-    st.subheader("Registre des Consultations")
+def page_analyse():
+    bouton_retour()
+    st.header("📊 ANALYSES STATISTIQUES DÉTAILLÉES")
+    conn = sqlite3.connect('sante_finale.db')
+    df = pd.read_sql_query('SELECT * FROM patients', conn); conn.close()
     
-    df_affichage = df_filtered_view.copy()
-    if not acces_autorise:
-        df_affichage['maladie'] = " CONFIDENTIEL"
-        st.info(" Mode Public : Les diagnostics sont masqués par le secret médical.")
-    else:
-        st.warning(" Mode Docteur : Accès aux diagnostics autorisé.")
+    if not df.empty:
+        # --- BLOC DES MÉTRIQUES (MOYENNE, VARIANCE, ÉCART-TYPE) ---
+        st.subheader("I-) Indicateurs de la Tension (mmHg)")
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Moyenne Tension", f"{df['tension'].mean():.2f}")
+        c2.metric("Variance Tension", f"{df['tension'].var():.2f}")
+        c3.metric("Écart-Type Tension", f"{df['tension'].std():.2f}")
 
-    st.dataframe(df_affichage, use_container_width=True)
+        st.subheader("II-) Indicateurs de l'Âge (ans)")
+        a1, a2, a3 = st.columns(3)
+        a1.metric("Moyenne Âge", f"{df['age'].mean():.2f}")
+        a2.metric("Variance Âge", f"{df['age'].var():.2f}")
+        a3.metric("Écart-Type Âge", f"{df['age'].std():.2f}")
 
-    def export_pdf(data):
-        buf = io.BytesIO()
-        c = canvas.Canvas(buf, pagesize=letter)
-        c.setFont("Helvetica-Bold", 16)
-        c.drawString(100, 750, "RAPPORT MÉDICAL ")
-        c.setFont("Helvetica", 12)
-        c.drawString(100, 730, f"Nombre de patients : {len(data)}")
-        c.drawString(100, 710, f"Moyenne Tension : {data['tension'].mean():.1f} mmHg")
-        y = 680
-        for i, row in data.iterrows():
-            c.drawString(100, y, f"- {row['nom']} {row['prenom']} | Tension: {row['tension']} | Statut: {row['statut']}")
-            y -= 20
-            if y < 50: break
-        c.save()
-        buf.seek(0)
-        return buf
-
-    st.download_button(
-        label=" Générer le Rapport PDF",
-        data=export_pdf(df),
-        file_name="rapport_medical.pdf",
-        mime="application/pdf"
-    )
-
-    if len(df) >= 2:
-        st.divider()
-        st.subheader(" Analyses Descriptives et Régression")
+        st.write("---")
+        # --- GRAPHIQUES (HISTOGRAMME + CAMEMBERT) ---
+        col_hist, col_pie = st.columns(2)
         
-        st.write("**Statistiques de la Tension**")
-        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-        col_m1.metric("Moyenne", f"{df['tension'].mean():.1f}")
-        col_m2.metric("Variance", f"{df['tension'].var():.1f}")
-        col_m3.metric("Écart-type", f"{df['tension'].std():.1f}")
-        correlation = df['age'].corr(df['tension'])
-        col_m4.metric("Corrélation (r)", f"{correlation:.2f}")
-        
-        st.write("**Statistiques de l'Âge**")
-        col_a1, col_a2, col_a3 = st.columns(3)
-        col_a1.metric("Moyenne Âge", f"{df['age'].mean():.1f}")
-        col_a2.metric("Variance Âge", f"{df['age'].var():.1f}")
-        col_a3.metric("Écart-type Âge", f"{df['age'].std():.1f}")
-
-        g1, g2, g3 = st.columns(3)
-        with g1:
-            st.write("**Distribution**")
+        with col_hist:
+            st.write("### 📊️ Distribution (Histogramme)")
             fig1, ax1 = plt.subplots()
-            fig1.patch.set_facecolor('#2c3e50')
-            ax1.set_facecolor('#2c3e50')
-            sns.histplot(df['tension'], kde=True, ax=ax1, color="cyan")
+            fig1.patch.set_facecolor('none')
+            sns.histplot(df['tension'], kde=True, ax=ax1, color="#3498db")
             ax1.tick_params(colors='white')
             st.pyplot(fig1)
-        
-        with g2:
-            st.write("**🤮️Répartition Maladies**")
-            fig_pie, ax_pie = plt.subplots()
-            fig_pie.patch.set_facecolor('#2c3e50')
-            counts = df['maladie'].value_counts()
-            ax_pie.pie(counts, labels=counts.index, autopct='%1.1f%%', textprops={'color':"w"})
-            st.pyplot(fig_pie)
-
-        with g3:
-            st.write("**〰️Régression**")
+            
+        with col_pie:
+            st.write("### 🔴️ Répartition des Maladies")
             fig2, ax2 = plt.subplots()
-            fig2.patch.set_facecolor('#2c3e50')
-            ax2.set_facecolor('#2c3e50')
-            sns.regplot(x=df['age'], y=df['tension'], ax=ax2, color="orange", line_kws={"color": "red"})
-            ax2.tick_params(colors='white')
+            fig2.patch.set_facecolor('none')
+            df['maladie'].value_counts().plot.pie(autopct='%1.1f%%', ax=ax2, textprops={'color':"w"})
             st.pyplot(fig2)
+    else:
+        st.info("La base de données est vide. Ajoutez des patients pour voir les analyses.")
 
-        pente, inter = np.polyfit(df['age'], df['tension'], 1)
-        st.write("###  Analyse de la Régression")
-        st.latex(f"y = {pente:.2f}x + {inter:.2f}")
-        # --- BLOC ANALYSE DÉTAILLÉE (À AJOUTER) ---
-        st.write("NB 🔍 Interprétation mathématique :")
-        col_exp1, col_exp2 = st.columns(2)
-        with col_exp1:
-            st.write(f"**La Pente ({pente:.2f}) :**")
-            st.write(f"Cela signifie que statistiquement, pour chaque année d'âge supplémentaire, la tension augmente de **{pente:.2f} mmHg**.")
-        with col_exp2:
-            st.write(f"**L'ordonnée à l'origine ({inter:.2f}) :**")
-            st.write(f"C'est la valeur théorique de la tension à l'âge 0. Ici, elle est de **{inter:.2f} mmHg**.")
+def page_inscription():
+    bouton_retour()
+    st.header("📑️ INSCRIPTION NOUVEAU PATIENT")
+    maladies = [
+        "Aucune", "Paludisme", "Typhoïde", "Hypertension", "Diabète", 
+        "Grippe", "Anémie", "Gastrite", "Asthme", "Infection Urinaire",
+        "Bronchite", "Rhumatisme", "Hépatite B", "Tuberculose", "Dengue"
+    ]
+    with st.form("form_patient"):
+        c1, c2 = st.columns(2)
+        nom = c1.text_input("NOM")
+        prenom = c2.text_input("PRÉNOM")
+        age = c1.number_input("ÂGE", 0, 120, 25)
+        tension = c2.number_input("TENSION (Systolique)", 40, 250, 120)
+        maladie = st.selectbox("DIAGNOSTIC", maladies)
+        statut = st.selectbox("STATUT", ["En attente", "Consulté"])
+        if st.form_submit_button("💾 ENREGISTRER LE PATIENT"):
+            if nom and prenom:
+                conn = sqlite3.connect('sante_finale.db')
+                conn.execute('INSERT INTO patients (nom, prenom, age, maladie, tension, statut) VALUES (?,?,?,?,?,?)', (nom,prenom,age,maladie,tension,statut))
+                conn.commit(); conn.close()
+                st.success(" bienvenue M/Mme !")
+            else: st.error("Veuillez remplir le nom et le prénom.")
+
+def page_session():
+    bouton_retour()
+    st.header("📋 REGISTRE ET EXPORTATION")
+    
+    conn = sqlite3.connect('sante_finale.db')
+    df = pd.read_sql_query('SELECT * FROM patients', conn)
+    conn.close()
+
+    if not df.empty:
+        # Gestion de la confidentialité
+        df_display = df.copy()
+        if not st.session_state.auth:
+            df_display['maladie'] = " CONFIDENTIEL"
         
-        if pente > 0:
-            st.success("1- Observation : Il existe une tendance à l'augmentation de la tension avec l'âge dans votre échantillon.")
-        else:
-            st.info("2- Observation : La tendance montre une légère baisse ou une stabilité de la tension avec l'âge.")
-st.markdown(f"""
-    <div style="position: fixed; bottom: 0; left: 0; width: 100%; background-color: rgba(0,0,0,0.8); text-align: center; padding: 8px;">
-        <p style="margin:0; color: white; font-size: 14px;">
-            Développé par <b>GEOVANNY ESSINDI VICTOR</b> | TP INF232 - 2026 
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
+        # Affichage du tableau
+        st.dataframe(df_display, use_container_width=True)
+
+        st.write("---")
+        st.subheader("📥 Télécharger les données")
+        
+        # Préparation des colonnes
+        col_csv, col_json = st.columns(2)
+
+        with col_csv:
+            # Export CSV
+            csv_data = df.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="📊 Télécharger en CSV (Excel)",
+                data=csv_data,
+                file_name='liste_patients.csv',
+                mime='text/csv',
+                use_container_width=True
+            )
+
+        with col_json:
+            # Export JSON (Format propre avec indentation)
+            json_data = df.to_json(orient='records', force_ascii=False, indent=4)
+            st.download_button(
+                label="{ } Télécharger en JSON",
+                data=json_data,
+                file_name='liste_patients.json',
+                mime='application/json',
+                use_container_width=True
+            )
+    else:
+        st.info("Le registre est vide.")
+
+def page_progres():
+    bouton_retour()
+    st.header("📈 ANALYSE DE LA RÉGRESSION")
+    conn = sqlite3.connect('sante_finale.db')
+    df = pd.read_sql_query('SELECT * FROM patients', conn); conn.close()
+    if len(df) >= 2:
+        fig, ax = plt.subplots()
+        fig.patch.set_facecolor('none')
+        sns.regplot(x=df['age'], y=df['tension'], ax=ax, color="#f1c40f", line_kws={"color": "red"})
+        ax.tick_params(colors='white')
+        st.pyplot(fig)
+        
+        pente, inter = np.polyfit(df['age'], df['tension'], 1)
+        st.latex(f"y = {pente:.2f}x + {inter:.2f}")
+        st.write(f"**Analyse :** Pour chaque année, la tension augmente de **{pente:.2f} mmHg**.")
+    else: st.warning("Données insuffisantes pour calculer la régression.")
+
+# --- 4. NAVIGATION ---
+if st.session_state.page == 'MENU': menu_principal()
+elif st.session_state.page == 'INSCRIPTION': page_inscription()
+elif st.session_state.page == 'SESSION': page_session()
+elif st.session_state.page == 'ANALYSE': page_analyse()
+elif st.session_state.page == 'PROGRES': page_progres()
+
+st.markdown(f'<div style="position:fixed;bottom:0;width:100%;text-align:center;color:white;background:rgba(0,0,0,0.9);padding:5px;"><b>GEOVANNY ESSINDI VICTOR</b> | TP INF232 - 2026</div>', unsafe_allow_html=True)
