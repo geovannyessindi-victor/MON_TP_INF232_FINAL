@@ -92,7 +92,7 @@ if 'form_key' not in st.session_state: st.session_state.form_key = 0
 def init_db():
     conn = sqlite3.connect('sante_finale.db')
     conn.execute('''CREATE TABLE IF NOT EXISTS patients 
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, nom TEXT, prenom TEXT, age INTEGER, maladie TEXT, tension INTEGER, statut TEXT)''')
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, nom TEXT, prenom TEXT, age INTEGER,sexe TEXT, maladie TEXT, tension INTEGER, statut TEXT)''')
     conn.commit(); conn.close()
 
 init_db()
@@ -180,12 +180,13 @@ def page_inscription():
         prenom = c2.text_input("PRÉNOM", placeholder="ex: LUCAS...")
         age = c1.number_input("ÂGE",placeholder="ex:24" )
         tension = c2.number_input("TENSION (Systolique)", placeholder="120")
+        sexe = st.selectbox("SEXE", ["votre sexe...","Masculin", "Féminin"])
         maladie = st.selectbox("DIAGNOSTIC", maladies)
         statut = st.selectbox("STATUT", ["Choisir un statut","Urgent","En attente", "Consulté"])
         if st.form_submit_button("💾 ENREGISTRER LE PATIENT"):
             if nom and prenom:
                 conn = sqlite3.connect('sante_finale.db')
-                conn.execute('INSERT INTO patients (nom, prenom, age, maladie, tension, statut) VALUES (?,?,?,?,?,?)', (nom,prenom,age,maladie,tension,statut))
+                conn.execute('INSERT INTO patients (nom, prenom, age, sexe, maladie, tension, statut) VALUES (?,?,?,?,?,?,?)', (nom,prenom,age,sexe,maladie,tension,statut))
                 conn.commit(); conn.close()
                 st.success(" bienvenue M/Mme !")
                 st.session_state.form_key += 1
@@ -223,7 +224,8 @@ def page_session():
             new_nom = c1.text_input("NOM", value=patient['nom'], placeholder="Entrez le nom...")
             new_prenom = c2.text_input("PRÉNOM", value=patient['prenom'], placeholder="Entrez le prénom...")
             new_age = c1.number_input("ÂGE", 0, 120, int(patient['age']))
-            new_tension = c2.number_input("TENSION (Systolique)", 40, 250, int(patient['tension']))
+            new_tension = c2.number_input("TENSION (Systolique)", 0, 250, int(patient['tension']))
+            new_sexe = st.selectbox("SEXE", ["Masculin", "Féminin"], index=0 if patient['sexe'] == "Masculin" else 1)
             idx_maladie = maladies_list.index(patient['maladie']) if patient['maladie'] in maladies_list else 0
             new_maladie = st.selectbox("DIAGNOSTIC", maladies_list, index=idx_maladie)
             idx_statut = ["En attente","Consulté"].index(patient['statut']) if patient['statut'] in ["En attente","Consulté"] else 0
@@ -231,8 +233,8 @@ def page_session():
             if st.form_submit_button("💾 SAUVEGARDER LES MODIFICATIONS"):
                 if new_nom and new_prenom:
                     conn2 = sqlite3.connect('sante_finale.db')
-                    conn2.execute('UPDATE patients SET nom=?, prenom=?, age=?, maladie=?, tension=?, statut=? WHERE id=?',
-                                  (new_nom, new_prenom, new_age, new_maladie, new_tension, new_statut, patient_id))
+                    conn2.execute('UPDATE patients SET nom=?, prenom=?, age=?, sexe=?, maladie=?, tension=?, statut=? WHERE id=?',
+              (new_nom, new_prenom, new_age, new_sexe, new_maladie, new_tension, new_statut, patient_id))
                     conn2.commit(); conn2.close()
                     st.success(f" Informations de {new_nom} {new_prenom} mises à jour !")
                     st.rerun()
