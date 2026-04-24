@@ -229,6 +229,31 @@ def page_session():
         st.dataframe(df_display, use_container_width=True)
 
         st.write("---")
+        st.subheader("📥 Télécharger les données")
+        st.markdown("""
+        <style>
+        div[data-testid="stDownloadButton"] > button {
+            background: linear-gradient(45deg, #1a6fc4, #2196F3) !important;
+            color: white !important;
+            border: 2px solid #2196F3 !important;
+            font-weight: bold !important;
+            border-radius: 8px !important;
+        }
+        div[data-testid="stDownloadButton"] > button:hover {
+            background: linear-gradient(45deg, #1558a0, #1a6fc4) !important;
+            border-color: #64b5f6 !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        col_csv, col_json = st.columns(2)
+        with col_csv:
+            csv_data = df.to_csv(index=False).encode('utf-8')
+            st.download_button(label="📊 Télécharger en CSV (Excel)", data=csv_data, file_name='liste_patients.csv', mime='text/csv', use_container_width=True)
+        with col_json:
+            json_data = df.to_json(orient='records', force_ascii=False, indent=4)
+            st.download_button(label="{ } Télécharger en JSON", data=json_data, file_name='liste_patients.json', mime='application/json', use_container_width=True)
+
+        st.write("---")
 
         # --- MODIFICATION 4 : MODIFIER LES INFOS D'UN PATIENT ---
         st.subheader("✏️ MODIFIER LES INFORMATIONS D'UN PATIENT")
@@ -259,33 +284,7 @@ def page_session():
                 else:
                     st.error("Le nom et le prénom sont obligatoires.")
 
-        st.write("---")
-        st.subheader("📥 Télécharger les données")
-        
-        # Préparation des colonnes
-        col_csv, col_json = st.columns(2)
 
-        with col_csv:
-            # Export CSV
-            csv_data = df.to_csv(index=False).encode('utf-8')
-            st.download_button(
-                label="📊 Télécharger en CSV (Excel)",
-                data=csv_data,
-                file_name='liste_patients.csv',
-                mime='text/csv',
-                use_container_width=True
-            )
-
-        with col_json:
-            # Export JSON (Format propre avec indentation)
-            json_data = df.to_json(orient='records', force_ascii=False, indent=4)
-            st.download_button(
-                label="{ } Télécharger en JSON",
-                data=json_data,
-                file_name='liste_patients.json',
-                mime='application/json',
-                use_container_width=True
-            )
     else:
         st.info("Le registre est vide.")
 
@@ -313,3 +312,4 @@ elif st.session_state.page == 'SESSION': page_session()
 elif st.session_state.page == 'ANALYSE': page_analyse()
 elif st.session_state.page == 'PROGRES': page_progres()
 st.markdown(f'<div style="position:fixed;bottom:0;width:100%;text-align:center;color:white;background:rgba(0,0,0,0.9);padding:5px;"><b>GEOVANNY ESSINDI VICTOR</b> | TP INF232 - 2026</div>', unsafe_allow_html=True)
+
