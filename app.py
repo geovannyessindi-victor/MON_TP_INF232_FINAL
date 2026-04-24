@@ -86,14 +86,32 @@ st.markdown("""
 # --- 2. INITIALISATION ---
 if 'page' not in st.session_state: st.session_state.page = 'MENU'
 if 'auth' not in st.session_state: st.session_state.auth = False
-# MODIFICATION 1 : clé pour réinitialiser le formulaire
 if 'form_key' not in st.session_state: st.session_state.form_key = 0
 
 def init_db():
     conn = sqlite3.connect('sante_finale.db')
-    conn.execute('''CREATE TABLE IF NOT EXISTS patients 
+    cursor = conn.cursor()
+    # Création de la table
+    cursor.execute('''CREATE TABLE IF NOT EXISTS patients 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, nom TEXT, prenom TEXT, age INTEGER,sexe TEXT, maladie TEXT, tension INTEGER, statut TEXT)''')
-    conn.commit(); conn.close()
+    
+    # Vérification si la table est vide
+    cursor.execute("SELECT COUNT(*) FROM patients")
+    count = cursor.fetchone()[0]
+    
+    # Si la table est vide (0 nom), on ajoute les 4 patients par défaut
+    if count == 0:
+        patients_test = [
+            ('ESSINDI', 'Geovanny', 22, 'masculin','Aucune', 120, 'Consulté'),
+            ('NDONGO', 'Marie', 45, 'feminin','Hypertension', 155, 'En attente'),
+            ('BEKONO', 'Jean', 30,'masculin', 'Paludisme', 110, 'Consulté'),
+            ('ABENA', 'Alice', 60,'feminin', 'Diabète', 135, 'En attente')
+        ]
+        cursor.executemany('''INSERT INTO patients (nom, prenom, age,sexe, maladie, tension, statut) 
+                              VALUES (?, ?, ?, ?,?, ?, ?)''', patients_test)
+        
+    conn.commit()
+    conn.close()
 
 init_db()
 
