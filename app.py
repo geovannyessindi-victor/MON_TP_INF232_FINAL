@@ -1,11 +1,34 @@
 import streamlit as st
-import sqlite3
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 from fpdf import FPDF
 import io
+import requests
+import json
+
+SUPABASE_URL = "https://mgcxknnlyxiupgeoyztb.supabase.co"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nY3hrbm5seXhpdXBnZW95enRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4MTk5NjcsImV4cCI6MjA2MTM5NTk2N30.RmgNlAN4ub_HMWmJGBYMlGEwpCpERZ1dGFCN1mGf3ms"
+HEADERS = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}", "Content-Type": "application/json", "Prefer": "return=representation"}
+
+def sb_get():
+    r = requests.get(f"{SUPABASE_URL}/rest/v1/patients?select=*&order=id.asc", headers=HEADERS)
+    data = r.json()
+    if isinstance(data, list) and len(data) > 0:
+        return pd.DataFrame(data)
+    return pd.DataFrame(columns=['id','nom','prenom','age','sexe','maladie','tension','statut'])
+
+def sb_insert(nom, prenom, age, sexe, maladie, tension, statut):
+    payload = {"nom":nom,"prenom":prenom,"age":int(age),"sexe":sexe,"maladie":maladie,"tension":int(tension),"statut":statut}
+    requests.post(f"{SUPABASE_URL}/rest/v1/patients", headers=HEADERS, data=json.dumps(payload))
+
+def sb_update(pid, nom, prenom, age, sexe, maladie, tension, statut):
+    payload = {"nom":nom,"prenom":prenom,"age":int(age),"sexe":sexe,"maladie":maladie,"tension":int(tension),"statut":statut}
+    requests.patch(f"{SUPABASE_URL}/rest/v1/patients?id=eq.{pid}", headers=HEADERS, data=json.dumps(payload))
+
+def sb_delete(pid):
+    requests.delete(f"{SUPABASE_URL}/rest/v1/patients?id=eq.{pid}", headers=HEADERS)
 
 # --- 1. CONFIGURATION & STYLE ---
 st.set_page_config(page_title="Santé Privée - INF232", page_icon="🩺", layout="wide")
@@ -104,23 +127,16 @@ if 'auth' not in st.session_state: st.session_state.auth = False
 if 'form_key' not in st.session_state: st.session_state.form_key = 0
 
 def init_db():
-    conn = sqlite3.connect('sante_finale.db')
-    cursor = conn.cursor()
-    cursor.execute('''CREATE TABLE IF NOT EXISTS patients 
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, nom TEXT, prenom TEXT, age INTEGER, sexe TEXT, maladie TEXT, tension INTEGER, statut TEXT)''')
-    cursor.execute("SELECT COUNT(*) FROM patients")
-    count = cursor.fetchone()[0]
-    if count == 0:
+    df = sb_get()
+    if df.empty:
         patients_test = [
             ('ESSINDI', 'Geovanny', 22, 'masculin', 'Aucune', 120, 'Consulté'),
             ('NDONGO', 'Marie', 45, 'feminin', 'Hypertension', 155, 'En attente'),
             ('BEKONO', 'Jean', 30, 'masculin', 'Paludisme', 110, 'Consulté'),
             ('ABENA', 'Alice', 60, 'feminin', 'Diabète', 135, 'En attente')
         ]
-        cursor.executemany('''INSERT INTO patients (nom, prenom, age, sexe, maladie, tension, statut) 
-                              VALUES (?, ?, ?, ?, ?, ?, ?)''', patients_test)
-    conn.commit()
-    conn.close()
+        for p in patients_test:
+            sb_insert(*p)
 
 init_db()
 
@@ -183,8 +199,7 @@ def menu_principal():
 def page_analyse():
     bouton_retour()
     st.header("📊 ANALYSES STATISTIQUES DÉTAILLÉES")
-    conn = sqlite3.connect('sante_finale.db')
-    df = pd.read_sql_query('SELECT * FROM patients', conn); conn.close()
+    df = sb_get()
     
     if not df.empty:
         st.subheader("I-) Indicateurs de la Tension (mmHg)")
@@ -238,9 +253,7 @@ def page_inscription():
         statut = st.selectbox("STATUT", ["Choisir un statut","Urgent","En attente", "Consulté"])
         if st.form_submit_button("💾 ENREGISTRER LE PATIENT"):
             if nom and prenom:
-                conn = sqlite3.connect('sante_finale.db')
-                conn.execute('INSERT INTO patients (nom, prenom, age, sexe, maladie, tension, statut) VALUES (?,?,?,?,?,?,?)', (nom,prenom,age,sexe,maladie,tension,statut))
-                conn.commit(); conn.close()
+                sb_insert(nom, prenom, age, sexe, maladie, tension, statut)
                 st.success(" bienvenue M/Mme !")
                 st.session_state.form_key += 1
                 st.rerun()
@@ -250,9 +263,7 @@ def page_session():
     bouton_retour()
     st.header("📋 REGISTRE ET EXPORTATION")
     
-    conn = sqlite3.connect('sante_finale.db')
-    df = pd.read_sql_query('SELECT * FROM patients', conn)
-    conn.close()
+    df = sb_get()
 
     if not df.empty:
         # --- COMPTEUR TOTAL ---
@@ -314,10 +325,7 @@ def page_session():
             new_statut = st.selectbox("STATUT", ["En attente","Consulté","Urgent"], index=idx_statut)
             if st.form_submit_button("💾 SAUVEGARDER LES MODIFICATIONS"):
                 if new_nom and new_prenom:
-                    conn2 = sqlite3.connect('sante_finale.db')
-                    conn2.execute('UPDATE patients SET nom=?, prenom=?, age=?, sexe=?, maladie=?, tension=?, statut=? WHERE id=?',
-                        (new_nom, new_prenom, new_age, new_sexe, new_maladie, new_tension, new_statut, patient_id))
-                    conn2.commit(); conn2.close()
+                    sb_update(patient_id, new_nom, new_prenom, new_age, new_sexe, new_maladie, new_tension, new_statut)
                     st.success(f"✅ Informations de {new_nom} {new_prenom} mises à jour !")
                     st.rerun()
                 else:
@@ -331,9 +339,7 @@ def page_session():
         choix_sup = st.selectbox("Sélectionner un patient à supprimer", options_sup, key="select_suppr")
         patient_id_sup = int(choix_sup.split(" ")[1])
         if st.button(f"🗑️ SUPPRIMER CE PATIENT"):
-            conn3 = sqlite3.connect('sante_finale.db')
-            conn3.execute('DELETE FROM patients WHERE id=?', (patient_id_sup,))
-            conn3.commit(); conn3.close()
+            sb_delete(patient_id_sup)
             st.success("✅ Patient supprimé !")
             st.rerun()
 
@@ -343,8 +349,7 @@ def page_session():
 def page_progres():
     bouton_retour()
     st.header("📈 ANALYSE DE LA RÉGRESSION")
-    conn = sqlite3.connect('sante_finale.db')
-    df = pd.read_sql_query('SELECT * FROM patients', conn); conn.close()
+    df = sb_get()
     if len(df) >= 2:
         fig, ax = plt.subplots()
         fig.patch.set_facecolor('none')
