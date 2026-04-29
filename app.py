@@ -8,8 +8,8 @@ import io
 import requests
 import json
 
-SUPABASE_URL = "https://mgcxknnlyxiupgeoyztb.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nY3hrbm5seXhpdXBnZW95enRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4MTk5NjcsImV4cCI6MjA2MTM5NTk2N30.RmgNlAN4ub_HMWmJGBYMlGEwpCpERZ1dGFCN1mGf3ms"
+SUPABASE_URL = st.secrets["SUPABASE_URL"]
+SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 HEADERS = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}", "Content-Type": "application/json", "Prefer": "return=representation"}
 
 def sb_get():
