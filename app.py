@@ -5,30 +5,48 @@ import seaborn as sns
 import numpy as np
 from fpdf import FPDF
 import io
-import requests
-import json
+import gspread
+from google.oauth2.service_account import Credentials
 
-SUPABASE_URL = st.secrets["SUPABASE_URL"]
-SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
-HEADERS = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}", "Content-Type": "application/json", "Prefer": "return=representation"}
+SHEET_ID = "1FsckTtN5m2EKGZQHl3O1P9gE8SniurnpNBld6C1cAu8"
+SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+
+def get_sheet():
+    creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=SCOPES)
+    client = gspread.authorize(creds)
+    return client.open_by_key(SHEET_ID).sheet1
 
 def sb_get():
-    r = requests.get(f"{SUPABASE_URL}/rest/v1/patients?select=*&order=id.asc", headers=HEADERS)
-    data = r.json()
-    if isinstance(data, list) and len(data) > 0:
-        return pd.DataFrame(data)
-    return pd.DataFrame(columns=['id','nom','prenom','age','sexe','maladie','tension','statut'])
+    try:
+        sheet = get_sheet()
+        data = sheet.get_all_records()
+        if data:
+            return pd.DataFrame(data)
+        return pd.DataFrame(columns=['id','nom','prenom','age','sexe','maladie','tension','statut'])
+    except:
+        return pd.DataFrame(columns=['id','nom','prenom','age','sexe','maladie','tension','statut'])
 
 def sb_insert(nom, prenom, age, sexe, maladie, tension, statut):
-    payload = {"nom":nom,"prenom":prenom,"age":int(age),"sexe":sexe,"maladie":maladie,"tension":int(tension),"statut":statut}
-    requests.post(f"{SUPABASE_URL}/rest/v1/patients", headers=HEADERS, data=json.dumps(payload))
+    sheet = get_sheet()
+    data = sheet.get_all_records()
+    new_id = max([r['id'] for r in data], default=0) + 1
+    sheet.append_row([new_id, nom, prenom, int(age), sexe, maladie, int(tension), statut])
 
 def sb_update(pid, nom, prenom, age, sexe, maladie, tension, statut):
-    payload = {"nom":nom,"prenom":prenom,"age":int(age),"sexe":sexe,"maladie":maladie,"tension":int(tension),"statut":statut}
-    requests.patch(f"{SUPABASE_URL}/rest/v1/patients?id=eq.{pid}", headers=HEADERS, data=json.dumps(payload))
+    sheet = get_sheet()
+    data = sheet.get_all_values()
+    for i, row in enumerate(data[1:], start=2):
+        if str(row[0]) == str(pid):
+            sheet.update(f'A{i}:H{i}', [[pid, nom, prenom, int(age), sexe, maladie, int(tension), statut]])
+            break
 
 def sb_delete(pid):
-    requests.delete(f"{SUPABASE_URL}/rest/v1/patients?id=eq.{pid}", headers=HEADERS)
+    sheet = get_sheet()
+    data = sheet.get_all_values()
+    for i, row in enumerate(data[1:], start=2):
+        if str(row[0]) == str(pid):
+            sheet.delete_rows(i)
+            break
 
 # --- 1. CONFIGURATION & STYLE ---
 st.set_page_config(page_title="Santé Privée - INF232", page_icon="🩺", layout="wide")
